@@ -1,5 +1,5 @@
 # One-line install from GitHub, in PowerShell:
-#   irm https://raw.githubusercontent.com/financialegg/claude-hebrew-rtl/main/get.ps1 | iex
+#   irm https://raw.githubusercontent.com/financialegg/claude-hebrew-rtl/main/get.ps1 | Out-String | iex
 # Downloads the repository as a ZIP, unpacks it in TEMP and runs its install.ps1.
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12

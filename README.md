@@ -17,7 +17,7 @@
 **דרך א, פקודה אחת:** פותחים PowerShell (מחפשים "PowerShell" בתפריט התחל), מדביקים את השורה הבאה ולוחצים Enter:
 
 ```powershell
-irm https://raw.githubusercontent.com/financialegg/claude-hebrew-rtl/main/get.ps1 | iex
+irm https://raw.githubusercontent.com/financialegg/claude-hebrew-rtl/main/get.ps1 | Out-String | iex
 ```
 
 **דרך ב, הורדה ידנית:** מורידים את החבילה (הכפתור הירוק Code, ואז Download ZIP), מחלצים את הקובץ, ולוחצים לחיצה כפולה על `Install.cmd`.
@@ -66,10 +66,10 @@ irm https://raw.githubusercontent.com/financialegg/claude-hebrew-rtl/main/get.ps
 The user pasted this repository's link and wants Hebrew RTL working. Windows only. Reply to the user in Hebrew, in plain language.
 
 1. **Install.** Run in PowerShell (not elevated):
-   `irm https://raw.githubusercontent.com/financialegg/claude-hebrew-rtl/main/get.ps1 | iex`
+   `irm https://raw.githubusercontent.com/financialegg/claude-hebrew-rtl/main/get.ps1 | Out-String | iex`
    If your environment refuses to run it, give the user that exact line to paste into PowerShell themselves.
 2. **Check.** Download and run the diagnostic, which changes nothing:
-   `irm https://raw.githubusercontent.com/financialegg/claude-hebrew-rtl/main/check.ps1 | iex`
+   `irm https://raw.githubusercontent.com/financialegg/claude-hebrew-rtl/main/check.ps1 | Out-String | iex`
    Every line is `[OK]` or `[FIX] <problem> -> <what to do>`.
 3. **Fix** each `[FIX]` line as it says, then run step 2 again until it ends with `ALL OK`. Ask the user before anything that needs administrator rights or removes software.
 4. **Tell the user**, in Hebrew: what was installed, that they must open a **new** chat (chats open during the install keep the old state until Claude is fully restarted), that the input box keeps left alignment, and the keys Ctrl+Alt+J (re-fix the input box) and Ctrl+Alt+Shift+R (pause the input-box helper).
