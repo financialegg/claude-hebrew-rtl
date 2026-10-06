@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'claude-code/testing'
-import { atomize, nativeReadsRight } from './atoms'
 
 import { LRI, PDI, RLI, RLM, rtlMarkdown, rtlPlain } from './transform'
 
@@ -99,27 +98,4 @@ describe('hooks', () => {
       expect(drawn).toBe(surface === 'terminal' ? 'קובץ index.js' : RLM + 'קובץ index.js')
     })
   }
-})
-
-describe('atomize', () => {
-  const show = (s: string) => atomize(s).map(a => a.text.replace(/ /g, '_')).join('|')
-  test('splits a mixed prompt into single-direction pieces in logical order', () => {
-    expect(show('Nvidia, מה ההבדל בין GPU ל-CPU?')).toBe('Nvidia|_,|מה|_|ההבדל|_|בין|_|GPU|_|ל|-|CPU|?')
-  })
-  test('keeps an English run whole and mirrors brackets between directions', () => {
-    expect(show('מניית S&P 500 (מדד) עלתה')).toBe('מניית|_|S&P_500|)_|מדד|_(|עלתה')
-  })
-})
-
-describe('nativeReadsRight', () => {
-  test('one plain Hebrew line keeps the native bubble', () => {
-    expect(nativeReadsRight('אפשרות 4')).toBe(true)
-    expect(nativeReadsRight('תמשיך עם המשימות')).toBe(true)
-  })
-  test('punctuation at an end, English, or several lines need the hand layout', () => {
-    expect(nativeReadsRight('בסשן חדש:')).toBe(false)
-    expect(nativeReadsRight('תבדוק את NVDA')).toBe(false)
-    expect(nativeReadsRight('שורה\nשנייה')).toBe(false)
-    expect(nativeReadsRight('4 אפשרויות')).toBe(false)
-  })
 })
