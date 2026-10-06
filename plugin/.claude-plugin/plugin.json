@@ -1,6 +1,6 @@
 {
   "name": "smart-rtl-he",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Hebrew right-to-left for the Claude Desktop Code tab: replies, prompts, tables and lists",
   "author": { "name": "Meidapnim" },
   "license": "MIT",
