@@ -1,0 +1,12 @@
+{
+  "name": "claude-hebrew-rtl",
+  "owner": { "name": "Meidapnim" },
+  "description": "Hebrew right-to-left for Claude Desktop (Code tab) on Windows, without patching the app",
+  "plugins": [
+    {
+      "name": "smart-rtl-he",
+      "source": "./plugin",
+      "description": "Lays out Hebrew replies and prompts right-to-left in the Claude Desktop Code tab"
+    }
+  ]
+}
