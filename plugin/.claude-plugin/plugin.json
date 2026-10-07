@@ -1,7 +1,7 @@
 {
   "name": "smart-rtl-he",
-  "version": "1.0.1",
-  "description": "Hebrew right-to-left for the Claude Desktop Code tab: replies, prompts, tables and lists",
+  "version": "1.1.0",
+  "description": "Hebrew right-to-left for the Claude Desktop Code tab: replies, prompts, tables and lists, plus Hebrew writing rules",
   "author": { "name": "Meidapnim" },
   "license": "MIT",
   "keywords": ["rtl", "hebrew", "bidi"],
