@@ -7,6 +7,7 @@
 - **התשובות של Claude:** מימין לשמאל, כולל טבלאות, רשימות ושורות שמתחילות במילה באנגלית.
 - **ההודעות שלך:** בסדר הנכון, בבועה המקורית, עם התאריך, ההעתקה והחזרה אחורה.
 - **שורת הכתיבה:** הסדר נכון כבר בזמן ההקלדה.
+- **כללי כתיבה:** Claude כותב עברית טבעית, עם טיקרים, מספרים ואחוזים במקום הנכון, וטבלאות שמתחילות בעמודה החשובה.
 
 **לא נוגע בקבצים של Claude.** בלי הרשאות מנהל, בלי תעודות אבטחה, ובלי שום דבר שנשבר כשמגיע עדכון של Claude.
 
@@ -32,6 +33,8 @@ irm https://raw.githubusercontent.com/financialegg/claude-hebrew-rtl/main/get.ps
 - **אחרי שזה הצליח:** פותחים את Claude, ופותחים **צ'אט חדש**. צ'אטים שהיו פתוחים לפני ההתקנה ממשיכים לעבוד כמו קודם, עד שסוגרים את Claude ופותחים אותו מחדש. מעבירים את המקלדת לעברית ומקלידים.
 
 אחרי ההתקנה אפשר למחוק את מה שהורדתם. ההתקנה מעתיקה לעצמה את מה שהיא צריכה.
+
+**עדכון:** מי שכבר התקין, מריץ שוב את אותה פקודה, ופותח צ'אט חדש. כך מקבלים את הגרסה האחרונה, כולל כללי הכתיבה.
 
 ## בדפדפן (claude.ai)
 
@@ -67,7 +70,8 @@ irm https://raw.githubusercontent.com/financialegg/claude-hebrew-rtl/main/get.ps
 
 - **`plugin/`:** תוסף ל-Claude Code. הוא מסדר את הכיוון של כל הודעה רק בתצוגה, והשיחה עצמה לא משתנה. מבוסס על [RTL-For-Claude-Desktop](https://github.com/xShakedDev/RTL-For-Claude-Desktop), ובו מנוע זיהוי הכיוון של [claude-desktop-rtl-patch](https://github.com/shraga100/claude-desktop-rtl-patch).
 - **`input/claude-rtl.ahk`:** סקריפט AutoHotkey של [legalmind-claude-desktop-rtl](https://github.com/legalmindcode/legalmind-claude-desktop-rtl), בגרסה v1.2.0, בלי שינויים. אין בו גישה לאינטרנט, לקבצים או ללוח ההעתקה.
-- **`browser/`:** הסקיל לדפדפן. בקובץ `hebrew-writing/SKILL.md` יש רק הוראות כתיבה, בלי קוד.
+- **`plugin/skills/hebrew-writing/`:** כללי הכתיבה בעברית. רק הוראות, בלי קוד. נכנסים עם התוסף.
+- **`browser/`:** אותם כללים, ארוזים כקובץ ZIP להעלאה ל-claude.ai.
 
 כל הרכיבים ברישיון MIT. פרטים בקובץ LICENSE.
 
