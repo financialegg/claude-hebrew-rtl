@@ -28,6 +28,9 @@ Write-Host '[3/4] Making sure AutoHotkey v2 is installed...'
 $ahk = @("$env:LOCALAPPDATA\Programs\AutoHotkey\v2\AutoHotkey64.exe", "$env:ProgramFiles\AutoHotkey\v2\AutoHotkey64.exe") |
     Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $ahk) {
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        throw 'winget is not available on this computer. Install AutoHotkey v2 by hand from https://www.autohotkey.com (the default options are fine), then run this again.'
+    }
     winget install AutoHotkey.AutoHotkey --version 2.0.26 --scope user --accept-package-agreements --accept-source-agreements --disable-interactivity
     $ahk = "$env:LOCALAPPDATA\Programs\AutoHotkey\v2\AutoHotkey64.exe"
     if (-not (Test-Path $ahk)) { throw 'AutoHotkey did not install. Install AutoHotkey v2 from https://www.autohotkey.com and run this again.' }

@@ -6,8 +6,10 @@ function Report($ok, $what, $fix) {
     else { Write-Host "[FIX] $what -> $fix" -ForegroundColor Red; $script:fails++ }
 }
 
+# Claude Desktop ships both as a Store/MSIX package and as a classic installer: accept either.
 $pkg = Get-AppxPackage -Name Claude -ErrorAction SilentlyContinue
-Report ([bool]$pkg) 'Claude Desktop installed' 'install it from https://claude.ai/download'
+$desktop = [bool]$pkg -or (Test-Path "$env:LOCALAPPDATA\AnthropicClaude") -or (Test-Path "$env:APPDATA\Claude")
+Report $desktop 'Claude Desktop installed' 'install it from https://claude.ai/download'
 
 $claude = (Get-Command claude.cmd -ErrorAction SilentlyContinue).Source
 if (-not $claude) {
