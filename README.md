@@ -69,7 +69,7 @@ irm https://raw.githubusercontent.com/financialegg/claude-hebrew-rtl/main/get.ps
 ## ממה זה בנוי
 
 - **`plugin/`:** תוסף ל-Claude Code. הוא מסדר את הכיוון של כל הודעה רק בתצוגה, והשיחה עצמה לא משתנה. מבוסס על [RTL-For-Claude-Desktop](https://github.com/xShakedDev/RTL-For-Claude-Desktop), ובו מנוע זיהוי הכיוון של [claude-desktop-rtl-patch](https://github.com/shraga100/claude-desktop-rtl-patch).
-- **`input/claude-rtl.ahk`:** סקריפט AutoHotkey של [legalmind-claude-desktop-rtl](https://github.com/legalmindcode/legalmind-claude-desktop-rtl), בגרסה v1.2.0, בלי שינויים. אין בו גישה לאינטרנט, לקבצים או ללוח ההעתקה.
+- **`input/claude-rtl.ahk`:** סקריפט AutoHotkey של [legalmind-claude-desktop-rtl](https://github.com/legalmindcode/legalmind-claude-desktop-rtl), על בסיס גרסה v1.2.0, עם שינוי אחד (v1.3): התו הבלתי נראה נכנס רק כשמתחילים להקליד, ולא בתיבה הריקה אחרי שליחה. כך כפתור העצירה של Claude נשאר זמין בזמן תשובה. אין בו גישה לאינטרנט, לקבצים או ללוח ההעתקה.
 - **`input/keepalive.ahk`:** סקריפט קטן שנכתב לחבילה הזאת. משימה מתוזמנת בשם `ClaudeHebrewRTL` מריצה אותו בכל התחברות ובכל דקה, והוא מפעיל את העזר רק אם הוא לא רץ. כך העזר חוזר לבד אחרי עדכון של Claude, בלי הרשאות מנהל.
 - **`plugin/skills/hebrew-writing/`:** כללי הכתיבה בעברית. רק הוראות, בלי קוד. נכנסים עם התוסף.
 - **`browser/`:** אותם כללים, ארוזים כקובץ ZIP להעלאה ל-claude.ai.

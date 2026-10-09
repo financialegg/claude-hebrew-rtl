@@ -14,8 +14,8 @@
 ;    - Aims all typing exclusively at Claude's main window (process
 ;      Claude.exe, top-level Chromium window class), never at its native
 ;      dialogs, and the automatic paths act only when the active keyboard
-;      layout is Hebrew. Every scheduled seed re-checks its conditions at
-;      the moment it fires.
+;      layout is Hebrew. Every seed re-checks its conditions at the moment
+;      it fires.
 ;    - No network, no file I/O, no logging, no clipboard access. Exactly
 ;      two Windows API calls exist in this script (GetWindowThreadProcessId
 ;      and GetKeyboardLayout), both for keyboard-layout detection.
@@ -30,15 +30,16 @@
 ;                      toggled off or the layout is English)
 ;    Ctrl+Alt+Shift+R  toggle automatic seeding on/off (global)
 ;
-;  Repair seeding (v1.2): deleting through the invisible mark or acting
-;  with the mouse used to require the manual hotkey. Now a deletion burst
-;  or a click inside Claude's main window triggers one blind repair seed
-;  at the caret - rate-limited to one per 3 seconds, Hebrew layout only,
-;  re-checked at fire time. Deletions also mark the window unseeded, so
-;  the ordinary start-of-message path recovers even when the repair is
-;  rate-limited. NOTE: the LButton hotkey means AutoHotkey installs a
-;  mouse hook in addition to the keyboard hook; the callback only reacts
-;  while Claude's main window is active, and clicks always pass through.
+;  First-keystroke seeding (v1.3): earlier versions planted the mark in the
+;  EMPTY input right after a send, a click or a return to Claude. Claude then
+;  saw a non-empty draft and showed its send button instead of the stop
+;  button while a reply was running. Now those events only arm the helper;
+;  the mark goes in when the first character of the next message is typed.
+;  While armed, an input hook holds back that one character and re-sends it
+;  right behind the mark, so nothing is lost or reordered; every other key
+;  (Enter, arrows, Backspace, shortcuts) passes straight through. The hook
+;  runs only while Claude's main window is active, the layout is Hebrew and
+;  the draft is not seeded yet, and stops after that one character.
 ; =============================================================================
 
 KeyHistory 0
@@ -46,6 +47,8 @@ ListLines 0
 
 SEED := Chr(0x202B)                  ; U+202B RIGHT-TO-LEFT EMBEDDING
 TOGGLE_LABEL := "Claude RTL seeding"
+CLAUDE := "ahk_exe Claude.exe"       ; the app this helper serves
+MAIN_CLASS := "Chrome_WidgetWin_1"   ; its main window (not native dialogs)
 
 global rtlOn := true
 global winSeeded := Map()            ; hwnd, is its current draft seeded?
@@ -53,8 +56,17 @@ global winTitle := Map()             ; hwnd, last seen window title
 global claudeGone := 0               ; watcher ticks with no Claude present
 global seedDeadline := 0             ; latest tick a deferred seed may wait for
 global prevActive := 0               ; last Claude window seen as active
-global lastSeedAt := 0               ; tick of the last activation seed
-global lastRepairAt := 0             ; tick of the last repair seed (own limiter)
+global lastRearmAt := 0              ; tick of the last click/deletion re-arm
+
+; Holds back text keys only (VisibleText is false by default); every
+; non-text key passes through untouched. Started and stopped by Rearm().
+; The script's own Send/SendText would be caught by this hook too, so every
+; seeding path stops it before typing (see Rearm and FirstChar).
+global firstKey := InputHook("L0")
+firstKey.VisibleNonText := true
+firstKey.BackspaceIsUndo := false    ; otherwise the hook swallows Backspace
+firstKey.KeyOpt("{Enter}{NumpadEnter}{Tab}{Esc}", "I")  ; no text: pass through
+firstKey.OnChar := FirstChar
 
 A_IconTip := "Claude RTL: on"
 A_TrayMenu.Add(TOGGLE_LABEL, (*) => ToggleRtl())
@@ -75,48 +87,89 @@ IsHebrewLayout() {
 ; #32770, e.g. the file picker) are excluded, so a seed is never typed
 ; into a file-name field.
 ClaudeMainActive() {
-    hwnd := WinActive("ahk_exe Claude.exe")
+    hwnd := WinActive(CLAUDE)
     if !hwnd
         return 0
     try cls := WinGetClass(hwnd)
     catch
         return 0
-    return (cls = "Chrome_WidgetWin_1") ? hwnd : 0
+    return (cls = MAIN_CLASS) ? hwnd : 0
 }
 
-; ---- seeding ----------------------------------------------------------------
+; ---- first-keystroke seeding ------------------------------------------------
+
+; Runs the input hook exactly while it is needed: Claude's main window is
+; active, seeding is on, the layout is Hebrew and the draft has no mark yet.
+Rearm() {
+    hwnd := ClaudeMainActive()
+    want := rtlOn && hwnd && !winSeeded.Get(hwnd, false) && IsHebrewLayout()
+    if (want && !firstKey.InProgress)
+        firstKey.Start()
+    else if (!want && firstKey.InProgress)
+        firstKey.Stop()
+}
+
+; The first character of a message: put the mark in front of it. Characters
+; typed while this ran were held back too; each gets its own call, queued
+; behind this one (Critical keeps them from interrupting each other), and
+; is re-sent in order without a second mark. A held character is always
+; re-sent, so a keystroke is never lost even if conditions changed.
+FirstChar(ih, ch) {
+    Critical
+    global winSeeded
+    hwnd := ClaudeMainActive()
+    ih.Stop()                        ; before typing, or it catches our own text
+    if (hwnd && rtlOn && !winSeeded.Get(hwnd, false) && IsHebrewLayout()) {
+        winSeeded[hwnd] := true
+        SendText(SEED ch)
+    } else {
+        SendText(ch)
+        Rearm()                      ; restarts only if still wanted
+    }
+}
+
+; Mark the active draft as needing a seed, and arm the hook at once (the
+; watcher would also do it, but up to 300ms later).
+Unseed() {
+    global winSeeded
+    hwnd := ClaudeMainActive()
+    if hwnd
+        winSeeded[hwnd] := false
+    Rearm()
+}
+
+; ---- seeding a draft that already has text ----------------------------------
 
 ; Seed at the start of the message, waiting out any typing burst first
 ; (so the Ctrl+Home / Ctrl+End dance never interleaves with keystrokes).
+; Used after a paste, where the draft is already non-empty.
 SeedLineStart() {
     global winSeeded
     if !rtlOn
         return
     hwnd := ClaudeMainActive()
     if !hwnd
-        return                       ; the watcher re-arms on the next visit
+        return
     if winSeeded.Get(hwnd, false)
-        return                       ; whichever window is active now is
-                                     ; already seeded - never double up
+        return                       ; already seeded - never double up
     if !IsHebrewLayout()
-        return                       ; the watcher re-arms on layout switch
+        return
     ; Wait for a gap in typing so the Home/End navigation cannot interleave
-    ; with real keystrokes - but never wait forever. Someone who types a
-    ; whole message without a 250ms pause would otherwise send it unseeded.
+    ; with real keystrokes - but never wait forever.
     if (A_TimeIdlePhysical < 250 && A_TickCount < seedDeadline) {
         SetTimer(SeedLineStart, -200)
         return
     }
+    winSeeded[hwnd] := true
+    Rearm()                          ; stops the hook before we type
     Send("^{Home}")
     SendText(SEED)
     Send("^{End}")
-    winSeeded[hwnd] := true
 }
 
 ; Seed the fresh line created by Shift+Enter. Every line break starts a new
 ; bidi paragraph, so without this the second line and onward render LTR
-; again - the single most visible failure of the one-seed-per-message
-; approach. Each key press schedules its own one-shot timer, so a rapid
+; again. Each key press schedules its own one-shot timer, so a rapid
 ; second Shift+Enter is never dropped and the hotkey thread never blocks.
 ; {Home} and {End} bracket the new line, keeping the mark at its start.
 ArmNewLineSeed() {
@@ -126,85 +179,67 @@ ArmNewLineSeed() {
 SeedNewLine() {
     if (!rtlOn || !ClaudeMainActive() || !IsHebrewLayout())
         return
+    firstKey.Stop()                  ; never catch our own mark
     Send("{Home}")
     SendText(SEED)
     Send("{End}")
+    Rearm()
 }
 
-; Seed at the caret without moving it. Used when returning to Claude, where
-; the input is usually empty and the caret is already at position 0. If a
-; draft is open instead, the mark lands mid-text: invisible, and inert,
-; because the message is already inside an embedding at that point. The
-; cost of one spare character buys back the case the script cannot detect -
-; a chat opened, switched, or sent with the mouse, which fires no hotkey
-; and does not change the window title.
-SeedAtCaret() {
-    global lastSeedAt
-    if (!rtlOn || !ClaudeMainActive() || !IsHebrewLayout())
+AfterPaste() {
+    global seedDeadline
+    hwnd := ClaudeMainActive()
+    if (!hwnd || winSeeded.Get(hwnd, false))
         return
-    SendText(SEED)
-    lastSeedAt := A_TickCount
+    seedDeadline := A_TickCount + 1500
+    SetTimer(SeedLineStart, -250)
 }
 
 ; ---- window / layout watcher ------------------------------------------------
 
-; Ticks every 300ms. Arms a seed whenever the active main Claude window's
-; draft is not seeded yet - which covers a newly opened window, a return
-; after a missed seed, and an English-to-Hebrew layout switch. A window
-; whose draft is already seeded is never re-seeded, so alt-tab round-trips
-; and Alt+Shift toggles cannot accumulate characters.
+; Ticks every 300ms. Treats a newly opened window, a title change and a
+; return to Claude from elsewhere as "the input may have been replaced"
+; and re-arms the first-keystroke seed. It never types anything itself,
+; so an empty input stays empty. Rearm() also follows layout switches.
 WatchClaude() {
-    global winSeeded, winTitle, claudeGone
+    global winSeeded, winTitle, claudeGone, prevActive
     DetectHiddenWindows True         ; Claude minimized to the tray is alive
-    if !WinExist("ahk_exe Claude.exe") {
+    if !WinExist(CLAUDE) {
         if (++claudeGone = 10) {     ; ~3s with no Claude: forget old windows
             winSeeded.Clear()        ; (also guards against hwnd reuse)
             winTitle.Clear()
         }
+        Rearm()
         return
     }
     claudeGone := 0
     dead := []                       ; drop entries whose window is gone, so
     for h, seen in winSeeded         ; a recycled hwnd can't inherit state
-        if !WinExist("ahk_exe Claude.exe ahk_id " h)
+        if !WinExist(CLAUDE " ahk_id " h)
             dead.Push(h)
     for h in dead {
         winSeeded.Delete(h)
         if winTitle.Has(h)              ; Delete throws on a missing key, and
             winTitle.Delete(h)          ; a window can be seeded before the
     }                                   ; watcher ever recorded its title
-    if !rtlOn
-        return
     hwnd := ClaudeMainActive()
     if !hwnd {
-        global prevActive := 0       ; focus left Claude - arm the next return
+        prevActive := 0              ; focus left Claude - arm the next return
+        Rearm()
         return
     }
-    ; A title change suggests a different conversation is on screen - a
-    ; fresh, empty input. This is a best-effort catch for switching chats
-    ; with the mouse, which fires no hotkey at all. Note that Claude
-    ; Desktop currently keeps the title constant, so in practice this
-    ; branch rarely fires; Ctrl+Alt+J remains the reliable recovery.
     try title := WinGetTitle(hwnd)
     catch
-        return
+        title := ""
     if (winTitle.Get(hwnd, "") != title) {
         winTitle[hwnd] := title
         winSeeded[hwnd] := false
     }
-    ; Returning to Claude from elsewhere: the input was very likely replaced
-    ; by a mouse action the script cannot see. Drop a mark at the caret,
-    ; rate limited, so coming back to a chat does not require the hotkey.
-    global prevActive
-    if (hwnd != prevActive) {
-        prevActive := hwnd
-        if (A_TickCount - lastSeedAt > 5000)
-            SetTimer(SeedAtCaret, -350)
+    if (hwnd != prevActive) {        ; back from elsewhere: the input was very
+        prevActive := hwnd           ; likely replaced by a mouse action the
+        winSeeded[hwnd] := false     ; script cannot see
     }
-    if (!winSeeded.Get(hwnd, false) && IsHebrewLayout()) {
-        global seedDeadline := A_TickCount + 1500
-        SetTimer(SeedLineStart, -250)
-    }
+    Rearm()
 }
 
 ; ---- toggle -----------------------------------------------------------------
@@ -218,6 +253,7 @@ ToggleRtl() {
         A_TrayMenu.Uncheck(TOGGLE_LABEL)
         SetTimer(SeedLineStart, 0)   ; cancel anything pending
     }
+    Rearm()
     ToolTip("Claude RTL " (rtlOn ? "ON" : "OFF"))
     SetTimer(ClearToolTip, -1200)    ; named, so rapid toggles reset one timer
 }
@@ -229,93 +265,44 @@ ClearToolTip() {
 ^!+r::ToggleRtl()                    ; global on purpose - usable anywhere
 
 ; ---- Claude-scoped hotkeys --------------------------------------------------
-; All Enter hotkeys use ~ (pass-through): the real keystroke always reaches
-; Claude first, so a script fault can never block sending a message.
+; All pass-through hotkeys use ~: the real keystroke always reaches Claude
+; first, so a script fault can never block sending a message.
 
-#HotIf WinActive("ahk_exe Claude.exe")
+#HotIf WinActive(CLAUDE)
 
-~Enter::        AfterSend()
-~NumpadEnter::  AfterSend()
+~Enter::        Unseed()             ; message sent: the input is empty again
+~NumpadEnter::  Unseed()
 ~+Enter::       ArmNewLineSeed()
 ~+NumpadEnter:: ArmNewLineSeed()
-~^n::           AfterNewChat()
+~^n::           Unseed()             ; new chat
+~^v::           AfterPaste()
 ^!j::           ManualSeed()
-~Backspace::    ArmRepairSeed(true)  ; deletion may have destroyed the seed -
-~Delete::       ArmRepairSeed(true)  ; mark unseeded so the watcher's start
-                                     ; dance is a second recovery path
-~LButton::      ArmRepairSeed(false) ; click may have sent or switched chat -
-                                     ; gentle caret repair only (no dance,
-                                     ; so a mid-draft click never jumps)
+~Backspace::    RearmLimited()       ; deletion may have removed the mark
+~Delete::       RearmLimited()
+~LButton::      RearmLimited()       ; a click may have sent or switched chat
 
 #HotIf
-
-; Message sent: the input is empty again, so mark this window unseeded and
-; schedule a fresh seed. Does nothing when focus is in a dialog.
-AfterSend() {
-    global winSeeded, seedDeadline
-    hwnd := ClaudeMainActive()
-    if !hwnd
-        return
-    winSeeded[hwnd] := false
-    seedDeadline := A_TickCount + 1500
-    SetTimer(SeedLineStart, -250)
-}
-
-AfterNewChat() {
-    global winSeeded, seedDeadline
-    hwnd := ClaudeMainActive()
-    if !hwnd
-        return
-    winSeeded[hwnd] := false
-    seedDeadline := A_TickCount + 2000
-    SetTimer(SeedLineStart, -500)    ; give the new chat's input time to mount
-}
 
 ManualSeed() {
     global winSeeded
     hwnd := ClaudeMainActive()
     if !hwnd
         return                       ; never type into dialogs, even manually
-    SendText(SEED)
     winSeeded[hwnd] := true          ; user handled it - no automatic follow-up
+    Rearm()                          ; stops the hook before we type
+    SendText(SEED)
 }
 
-; ---- repair seeding ---------------------------------------------------------
-; The script cannot read the draft, so it cannot know whether a deletion
-; consumed the seed or a click emptied the input. Instead: after each burst
-; of deletions or clicks, plant one seed at the caret "just in case". In
-; the common breakage cases the caret is exactly where the seed belongs
-; (deleted back to line start; input emptied by a mouse send or a chat
-; switch). When nothing was actually broken, the cost is one spare inert
-; invisible character in the draft. Bounded by: Hebrew layout only, main
-; Claude window only, at most one repair per 3 seconds, and a wait for a
-; pause in typing so a repair never lands mid-word.
-
-ArmRepairSeed(unseed := false) {
-    global winSeeded
-    if unseed {                      ; deletions: the message-start seed may
-        hwnd := ClaudeMainActive()   ; be gone - let the watcher's start
-        if hwnd                      ; dance recover even if the repair
-            winSeeded[hwnd] := false ; below is rate-limited or deferred
-    }
-    SetTimer(RepairSeed, -450)       ; restarted on every event, so one
-}                                    ; repair per burst, after it ends
-
-RepairSeed() {
-    global winSeeded, lastRepairAt
-    if (!rtlOn || !IsHebrewLayout())
+; The script cannot read the draft, so after a deletion or a click it
+; cannot know whether the mark is gone or the input was emptied. It re-arms
+; instead: the next typed character gets a mark in front of it. Where the
+; draft is intact, that mark lands mid-text, where it is invisible and inert
+; (the text is already inside an embedding). At most once per 3 seconds, so
+; ordinary typo fixes do not scatter marks through a long draft.
+RearmLimited() {
+    global lastRearmAt
+    if (A_TickCount - lastRearmAt < 3000)
         return
-    hwnd := ClaudeMainActive()
-    if !hwnd
-        return
-    if (A_TickCount - lastRepairAt < 3000)
-        return                       ; own limiter - never couples with the
-                                     ; focus-return seed's rate limit
-    if (A_TimeIdlePhysical < 250) {  ; user is typing again - wait for a gap;
-        SetTimer(RepairSeed, -200)   ; no deadline: a repair is opportunistic,
-        return                       ; and the next send reseeds anyway
-    }
-    SendText(SEED)
-    lastRepairAt := A_TickCount
-    winSeeded[hwnd] := true          ; suppress the watcher's Ctrl+Home dance
+    lastRearmAt := A_TickCount
+    Unseed()
 }
