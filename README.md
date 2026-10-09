@@ -70,6 +70,7 @@ irm https://raw.githubusercontent.com/financialegg/claude-hebrew-rtl/main/get.ps
 
 - **`plugin/`:** תוסף ל-Claude Code. הוא מסדר את הכיוון של כל הודעה רק בתצוגה, והשיחה עצמה לא משתנה. מבוסס על [RTL-For-Claude-Desktop](https://github.com/xShakedDev/RTL-For-Claude-Desktop), ובו מנוע זיהוי הכיוון של [claude-desktop-rtl-patch](https://github.com/shraga100/claude-desktop-rtl-patch).
 - **`input/claude-rtl.ahk`:** סקריפט AutoHotkey של [legalmind-claude-desktop-rtl](https://github.com/legalmindcode/legalmind-claude-desktop-rtl), בגרסה v1.2.0, בלי שינויים. אין בו גישה לאינטרנט, לקבצים או ללוח ההעתקה.
+- **`input/keepalive.ahk`:** סקריפט קטן שנכתב לחבילה הזאת. משימה מתוזמנת בשם `ClaudeHebrewRTL` מריצה אותו בכל התחברות ובכל דקה, והוא מפעיל את העזר רק אם הוא לא רץ. כך העזר חוזר לבד אחרי עדכון של Claude, בלי הרשאות מנהל.
 - **`plugin/skills/hebrew-writing/`:** כללי הכתיבה בעברית. רק הוראות, בלי קוד. נכנסים עם התוסף.
 - **`browser/`:** אותם כללים, ארוזים כקובץ ZIP להעלאה ל-claude.ai.
 
@@ -92,8 +93,10 @@ The user pasted this repository's link and wants Hebrew RTL working. The full fi
    `irm https://raw.githubusercontent.com/financialegg/claude-hebrew-rtl/main/check.ps1 | Out-String | iex`
    Every line is `[OK]` or `[FIX] <problem> -> <what to do>`.
 3. **Fix** each `[FIX]` line as it says, then run step 2 again until it ends with `ALL OK`. Ask the user before anything that needs administrator rights or removes software.
-4. **Tell the user**, in Hebrew: what was installed, that they must open a **new** chat (chats open during the install keep the old state until Claude is fully restarted), that the input box keeps left alignment, and the keys Ctrl+Alt+J (re-fix the input box) and Ctrl+Alt+Shift+R (pause the input-box helper).
+4. **Tell the user**, in Hebrew: what was installed (the input-box helper is kept running by a scheduled task named ClaudeHebrewRTL that starts it at sign-in and re-checks every minute, so it also comes back by itself after a Claude update; no admin rights), that they must open a **new** chat (chats open during the install keep the old state until Claude is fully restarted), that the input box keeps left alignment, and the keys Ctrl+Alt+J (re-fix the input box) and Ctrl+Alt+Shift+R (pause the input-box helper).
 
 **If you are running in the browser (claude.ai) with no shell**, you cannot install the package. Tell the user, in Hebrew, that the full fix works only in the Claude Desktop app on Windows (steps above), and walk them through the browser add-on: download `browser/hebrew-writing.zip` from this repo (https://github.com/financialegg/claude-hebrew-rtl/raw/main/browser/hebrew-writing.zip), enable Settings > Capabilities > "Code execution and file creation", then Customize > Skills > + > Create skill > Upload a skill, and make sure it is toggled on. It improves how answers are written; it does not fix the input box.
+
+5. **If the user ever sees "Script file not found" when Windows starts** (the cause is almost always an install folder under AppData; Claude Desktop is an MSIX app and hides such folders from Windows, so the install folder is `%USERPROFILE%\.claude-hebrew-rtl` on purpose, never move it): the startup entry is broken or from an older install. Run step 1 again (it replaces the entry), then step 2.
 
 Do not patch or re-sign Claude's own files, and do not install the older binary patch (shraga100/claude-desktop-rtl-patch): it is what this package replaces.

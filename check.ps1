@@ -27,11 +27,26 @@ if ($claude) {
 $ahk = @("$env:LOCALAPPDATA\Programs\AutoHotkey\v2\AutoHotkey64.exe", "$env:ProgramFiles\AutoHotkey\v2\AutoHotkey64.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
 Report ([bool]$ahk) 'AutoHotkey v2 installed' 'winget install AutoHotkey.AutoHotkey --version 2.0.26 --scope user, or https://www.autohotkey.com'
 
-$script = Join-Path $env:LOCALAPPDATA 'ClaudeHebrewRTL\input\claude-rtl.ahk'
+$script = Join-Path $env:USERPROFILE '.claude-hebrew-rtl\input\claude-rtl.ahk'
 Report (Test-Path $script) 'Input-box script in place' 'run install.ps1 again'
+# Claude Desktop is an MSIX app: a folder created directly under AppData from inside it is invisible to Windows outside it.
+# A process started through WMI is outside Claude's app, so it sees what Windows sees at sign-in.
+$flag = Join-Path $env:PUBLIC 'claude-hebrew-rtl-check.txt'
+Remove-Item $flag -ErrorAction SilentlyContinue
+$null = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = ('cmd.exe /c if exist "' + $script + '" echo ok> "' + $flag + '"') }
+for ($n = 0; $n -lt 20 -and -not (Test-Path $flag); $n++) { Start-Sleep -Milliseconds 250 }
+$seen = Test-Path $flag
+Remove-Item $flag -ErrorAction SilentlyContinue
+Report $seen 'Helper script visible to Windows outside Claude' 'run install.ps1 again (the install folder must be .claude-hebrew-rtl in the user profile, never under AppData)'
 $running = @(Get-CimInstance Win32_Process -Filter "Name='AutoHotkey64.exe'" | Where-Object { $_.CommandLine -like '*claude-rtl.ahk*' })
 Report ($running.Count -eq 1) "Input-box helper running (instances: $($running.Count))" 'run install.ps1 again; if it keeps dying, allow AutoHotkey in the antivirus; more than 1 = remove old Startup shortcuts and sign out/in'
-Report (Test-Path (Join-Path ([Environment]::GetFolderPath('Startup')) 'Claude Hebrew RTL.lnk')) 'Starts with Windows' 'run install.ps1 again'
+$runVal = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -ErrorAction SilentlyContinue).ClaudeHebrewRTL
+$tk = Get-ScheduledTask -TaskName ClaudeHebrewRTL -ErrorAction SilentlyContinue
+Report (($tk -and $tk.State -ne 'Disabled') -or ($runVal -and $runVal.Contains($script))) 'Starts with Windows and restarts itself if stopped' 'run install.ps1 again'
+Report (Test-Path (Join-Path (Split-Path $script) 'keepalive.ahk')) 'Keep-alive script in place' 'run install.ps1 again'
+$oldDir = Join-Path $env:LOCALAPPDATA 'ClaudeHebrewRTL'
+Report (-not ((Test-Path (Join-Path $oldDir 'input\claude-rtl.ahk')) -and -not (Test-Path (Join-Path $oldDir '.git')))) 'No old install folder under AppData' 'run install.ps1 again (it removes it)'
+Report (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Startup')) 'Claude Hebrew RTL.lnk'))) 'No old startup shortcut' 'run install.ps1 again (the old shortcut breaks with non-English user names: "Script file not found" at sign-in)'
 
 Report ([bool]((Get-WinUserLanguageList).LanguageTag | Where-Object { $_ -like 'he*' })) 'Hebrew keyboard in Windows' 'Settings > Time & language > Language & region > Add a language > Hebrew'
 
