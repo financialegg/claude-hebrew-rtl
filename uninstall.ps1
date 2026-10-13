@@ -4,7 +4,8 @@ $old = Join-Path $env:LOCALAPPDATA 'ClaudeHebrewRTL'   # earlier versions
 
 $claude = (Get-Command claude.cmd -ErrorAction SilentlyContinue).Source
 if (-not $claude) {
-    $claude = Get-ChildItem "$env:APPDATA\Claude\claude-code" -Recurse -Filter claude.exe -ErrorAction SilentlyContinue |
+    # Claude Desktop is MSIX: seen from a normal terminal its %APPDATA% copy is under Packages\Claude_*\LocalCache.
+    $claude = Get-ChildItem "$env:APPDATA\Claude\claude-code", "$env:LOCALAPPDATA\Packages\Claude_*\LocalCache\Roaming\Claude\claude-code" -Recurse -Filter claude.exe -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
 }
 if ($claude) {

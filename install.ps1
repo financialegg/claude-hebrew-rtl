@@ -16,7 +16,8 @@ if ((Test-Path (Join-Path $old 'input\claude-rtl.ahk')) -and -not (Test-Path (Jo
 # The npm 'claude' if installed, else the one Claude Desktop ships with.
 $claude = (Get-Command claude.cmd -ErrorAction SilentlyContinue).Source
 if (-not $claude) {
-    $claude = Get-ChildItem "$env:APPDATA\Claude\claude-code" -Recurse -Filter claude.exe -ErrorAction SilentlyContinue |
+    # Claude Desktop is MSIX: seen from a normal terminal its %APPDATA% copy is under Packages\Claude_*\LocalCache.
+    $claude = Get-ChildItem "$env:APPDATA\Claude\claude-code", "$env:LOCALAPPDATA\Packages\Claude_*\LocalCache\Roaming\Claude\claude-code" -Recurse -Filter claude.exe -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
 }
 if (-not $claude) { throw 'Claude Desktop was not found. Install it from https://claude.ai/download, open the Code tab once, then run this again.' }
