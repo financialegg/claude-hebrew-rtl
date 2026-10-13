@@ -15,7 +15,9 @@
 
 לפני שמתחילים, צריך ש-Claude Desktop יהיה מותקן, ושלשונית Code תיפתח בו לפחות פעם אחת. אז סוגרים את Claude.
 
-**דרך א, פקודה אחת:** פותחים PowerShell (מחפשים "PowerShell" בתפריט התחל), מדביקים את השורה הבאה ולוחצים Enter:
+**דרוש מנוי Pro ומעלה.** לשונית Code לא כלולה במנוי החינמי, ובלעדיה ההתקנה לא תעבוד. במנוי חינמי אפשר להשתמש רק בכללי הכתיבה, דרך claude.ai (ראו "בדפדפן" למטה).
+
+**דרך א, פקודה אחת:** פותחים PowerShell רגיל, לא כמנהל (מחפשים "PowerShell" בתפריט התחל), מדביקים את השורה הבאה ולוחצים Enter:
 
 ```powershell
 irm https://raw.githubusercontent.com/financialegg/claude-hebrew-rtl/main/get.ps1 | Out-String | iex

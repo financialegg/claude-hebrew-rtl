@@ -20,7 +20,7 @@ if (-not $claude) {
     $claude = Get-ChildItem "$env:APPDATA\Claude\claude-code", "$env:LOCALAPPDATA\Packages\Claude_*\LocalCache\Roaming\Claude\claude-code" -Recurse -Filter claude.exe -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
 }
-if (-not $claude) { throw 'Claude Desktop was not found. Install it from https://claude.ai/download, open the Code tab once, then run this again.' }
+if (-not $claude) { throw 'Claude Code (the engine behind the Code tab) was not found. It needs a paid Claude plan (Pro or higher); the Free plan has no Code tab. With a paid plan: install Claude Desktop from https://claude.ai/download, open the Code tab once, close Claude, then run this again.' }
 
 Write-Host '[2/4] Installing the Claude plugin...'
 # ponytail: remove-then-add makes a re-run an update; errors from the remove are expected on a first install.
