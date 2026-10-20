@@ -40,6 +40,11 @@
 ;  (Enter, arrows, Backspace, shortcuts) passes straight through. The hook
 ;  runs only while Claude's main window is active, the layout is Hebrew and
 ;  the draft is not seeded yet, and stops after that one character.
+;
+;  Neutral first characters (v1.4): a message that starts with "/" is a
+;  slash command and gets no mark, so it stays "/plugin" and Claude still
+;  sees the "/". One that starts with "-", a digit or a space waits for the
+;  first letter: Hebrew puts the mark at the line start, English puts none.
 ; =============================================================================
 
 KeyHistory 0
@@ -57,6 +62,7 @@ global claudeGone := 0               ; watcher ticks with no Claude present
 global seedDeadline := 0             ; latest tick a deferred seed may wait for
 global prevActive := 0               ; last Claude window seen as active
 global lastRearmAt := 0              ; tick of the last click/deletion re-arm
+global pendingStart := false         ; draft so far holds only "-", digits, spaces
 
 ; Holds back text keys only (VisibleText is false by default); every
 ; non-text key passes through untouched. Started and stopped by Rearm().
@@ -101,7 +107,12 @@ ClaudeMainActive() {
 ; Runs the input hook exactly while it is needed: Claude's main window is
 ; active, seeding is on, the layout is Hebrew and the draft has no mark yet.
 Rearm() {
+    global pendingStart
     hwnd := ClaudeMainActive()
+    if (pendingStart && hwnd && !IsHebrewLayout()) {
+        pendingStart := false        ; "-" then English: this draft stays LTR
+        winSeeded[hwnd] := true
+    }
     want := rtlOn && hwnd && !winSeeded.Get(hwnd, false) && IsHebrewLayout()
     if (want && !firstKey.InProgress)
         firstKey.Start()
@@ -117,21 +128,48 @@ Rearm() {
 FirstChar(ih, ch) {
     Critical
     global winSeeded
+    global pendingStart
     hwnd := ClaudeMainActive()
     ih.Stop()                        ; before typing, or it catches our own text
-    if (hwnd && rtlOn && !winSeeded.Get(hwnd, false) && IsHebrewLayout()) {
-        winSeeded[hwnd] := true
-        SendText(SEED ch)
-    } else {
+    if !(hwnd && rtlOn && !winSeeded.Get(hwnd, false) && IsHebrewLayout()) {
         SendText(ch)
         Rearm()                      ; restarts only if still wanted
+        return
     }
+    ; A slash command ("/plugin") must start with "/" and reads left to right:
+    ; a mark in front would flip it to "plugin/" and hide it from Claude.
+    if (ch = "/" && !pendingStart) {
+        winSeeded[hwnd] := true
+        SendText(ch)
+        return
+    }
+    ; "-", digits, spaces have no direction of their own. Type them as they
+    ; are and let the first letter decide: Hebrew gets the mark at the line
+    ; start (before the "-"), English gets none, so "-plugin" stays as typed.
+    if !RegExMatch(ch, "^\pL$") {
+        pendingStart := true
+        SendText(ch)
+        Rearm()
+        return
+    }
+    winSeeded[hwnd] := true
+    hebrew := RegExMatch(ch, "^[\x{0590}-\x{05FF}]$")
+    if !pendingStart {
+        SendText(hebrew ? SEED ch : ch)
+        return
+    }
+    pendingStart := false
+    if hebrew                        ; one SendInput call: keys typed meanwhile wait
+        Send("^{Home}{U+202B}^{End}{U+" Format("{:04X}", Ord(ch)) "}")
+    else
+        SendText(ch)
 }
 
 ; Mark the active draft as needing a seed, and arm the hook at once (the
 ; watcher would also do it, but up to 300ms later).
 Unseed() {
     global winSeeded
+    global pendingStart := false
     hwnd := ClaudeMainActive()
     if hwnd
         winSeeded[hwnd] := false
@@ -202,7 +240,7 @@ AfterPaste() {
 ; and re-arms the first-keystroke seed. It never types anything itself,
 ; so an empty input stays empty. Rearm() also follows layout switches.
 WatchClaude() {
-    global winSeeded, winTitle, claudeGone, prevActive
+    global winSeeded, winTitle, claudeGone, prevActive, pendingStart
     DetectHiddenWindows True         ; Claude minimized to the tray is alive
     if !WinExist(CLAUDE) {
         if (++claudeGone = 10) {     ; ~3s with no Claude: forget old windows
@@ -234,10 +272,12 @@ WatchClaude() {
     if (winTitle.Get(hwnd, "") != title) {
         winTitle[hwnd] := title
         winSeeded[hwnd] := false
+        pendingStart := false
     }
     if (hwnd != prevActive) {        ; back from elsewhere: the input was very
         prevActive := hwnd           ; likely replaced by a mouse action the
         winSeeded[hwnd] := false     ; script cannot see
+        pendingStart := false
     }
     Rearm()
 }
