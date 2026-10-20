@@ -98,6 +98,7 @@ irm https://raw.githubusercontent.com/financialegg/claude-hebrew-rtl/main/get.ps
 - **יישור שורת הכתיבה:** הסדר בה נכון, אבל היא נשארת מיושרת לשמאל.
 - **תו בלתי נראה:** התיקון של שורת הכתיבה מוסיף בתחילת ההודעה תו שלא רואים. Claude מתעלם ממנו. מעתיקים הודעה שלכם למסמך רשמי או לקוד? כדאי לדעת שהתו עובר יחד איתה.
 - **מקלדת:** התיקון בשורת הכתיבה פועל רק כשהמקלדת בעברית.
+- **פקודות עם לוכסן:** הודעה שמתחילה בלוכסן, כמו `/plugin`, נשארת כמו שהקלדתם, גם כשהמקלדת בעברית. כך Claude מזהה את הפקודה. הודעה שמתחילה במקף או במספר מקבלת את הכיוון לפי האות הראשונה שאחריהם.
 - **מערכת הפעלה:** Windows בלבד, ורק לשונית Code של Claude Desktop.
 
 ## הסרה
@@ -107,7 +108,7 @@ irm https://raw.githubusercontent.com/financialegg/claude-hebrew-rtl/main/get.ps
 ## ממה זה בנוי
 
 - **`plugin/`:** תוסף ל-Claude Code. הוא מסדר את הכיוון של כל הודעה רק בתצוגה, והשיחה עצמה לא משתנה. מבוסס על [RTL-For-Claude-Desktop](https://github.com/xShakedDev/RTL-For-Claude-Desktop), ובו מנוע זיהוי הכיוון של [claude-desktop-rtl-patch](https://github.com/shraga100/claude-desktop-rtl-patch).
-- **`input/claude-rtl.ahk`:** סקריפט AutoHotkey של [legalmind-claude-desktop-rtl](https://github.com/legalmindcode/legalmind-claude-desktop-rtl), על בסיס גרסה v1.2.0, עם שינוי אחד (v1.3): התו הבלתי נראה נכנס רק כשמתחילים להקליד, ולא בתיבה הריקה אחרי שליחה. כך כפתור העצירה של Claude נשאר זמין בזמן תשובה. אין בו גישה לאינטרנט, לקבצים או ללוח ההעתקה.
+- **`input/claude-rtl.ahk`:** סקריפט AutoHotkey של [legalmind-claude-desktop-rtl](https://github.com/legalmindcode/legalmind-claude-desktop-rtl), על בסיס גרסה v1.2.0, עם שני שינויים. בגרסה v1.3: התו הבלתי נראה נכנס רק כשמתחילים להקליד, ולא בתיבה הריקה אחרי שליחה. כך כפתור העצירה של Claude נשאר זמין בזמן תשובה. בגרסה v1.4: לא נכנס תו לפני לוכסן בתחילת ההודעה, ולפני מקף או מספר הכיוון נקבע לפי האות הראשונה. אין בו גישה לאינטרנט, לקבצים או ללוח ההעתקה.
 - **`input/keepalive.ahk`:** סקריפט קטן שנכתב לחבילה הזאת. משימה מתוזמנת בשם `ClaudeHebrewRTL` מריצה אותו בכל התחברות ובכל דקה, והוא מפעיל את העזר רק אם הוא לא רץ. כך העזר חוזר לבד אחרי עדכון של Claude, בלי הרשאות מנהל.
 - **`plugin/skills/hebrew-writing/`:** כללי הכתיבה בעברית. רק הוראות, בלי קוד. נכנסים עם התוסף.
 - **`browser/`:** אותם כללים, ארוזים כקובץ ZIP להעלאה ל-claude.ai.
